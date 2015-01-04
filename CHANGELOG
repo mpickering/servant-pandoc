@@ -1,0 +1,7 @@
+- 0.1.0.1
+
+Fix trailing "," when rendering list of values
+
+- 0.1
+
+* Initial release
