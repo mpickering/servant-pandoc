@@ -1,3 +1,7 @@
+- 0.1.0.2
+
+Fix breaking interface change from servant-docs 0.3
+
 - 0.1.0.1
 
 Fix trailing "," when rendering list of values

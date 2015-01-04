@@ -15,7 +15,7 @@
 -- > myApi = Proxy
 -- >
 -- > writeDocs :: API -> IO ()
--- > writeDocs api = writeMediaWiki def (pandoc api) >>= writeFile "api.mw"
+-- > writeDocs api = writeFile "api.mw" (writeMediaWiki def (pandoc api))
 --
 -- The second approach is to use `makeFilter` to make a filter which can be
 -- used directly with pandoc from the command line. This filter will just
@@ -142,7 +142,12 @@ pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
           B.bulletList (
             [B.plain $ "Status code" <> B.space <> (B.str . show) (resp ^. respStatus)]
               ++
-            (resp ^. respBody &
-              maybe [B.plain "No response body"]
-                    (\b -> [B.plain "Response body as below." <> jsonStr b])))
+            case resp ^. respBody of
+              [] -> [B.plain "No response body"]
+              xs -> map renderResponse xs)
+          where
+            renderResponse ("", r) =
+              B.plain "Response body at below" <> jsonStr r
+            renderResponse (ctx, r) =
+              B.plain (B.str . unpack $ ctx) <> jsonStr r
 
