@@ -97,7 +97,7 @@ pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
               B.definitionList (
                 [(B.strong "Values",
                     [B.plain (B.emph
-                      (foldr (\a b -> B.str a <> B.str "," <> B.space <> b) mempty values))])
+                      (foldr1 (\a b -> a <> B.str "," <> B.space <> b) (map B.str values)))])
                 | not (null values) || param ^. paramKind /= Flag]
                 ++
               [(B.strong "Description",
