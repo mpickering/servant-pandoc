@@ -1,0 +1,56 @@
+= POST <code>greet</code> =
+
+== Request Body ==
+
+<source lang="javascript">{
+    "msg": "Hello, haskeller!"
+}</source>
+== Response ==
+
+<ul>
+<li>Status code 201</li>
+<li>Response body as below.
+<source lang="javascript">{
+    "msg": "Hello, haskeller!"
+}</source></li></ul>
+
+= GET <code>hello/:name</code> =
+
+== Captures ==
+
+* ''“name”'': name of the person to greet
+
+== GET Parameters ==
+
+<ul>
+<li>capital
+<dl>
+<dt>'''Values'''</dt>
+<dd>''true, false''</dd>
+<dt>'''Description'''</dt>
+<dd>Get the greeting message in uppercase (true) or not (false). Default is false.</dd></dl>
+
+<ul>
+<li>This parameter is a '''list'''. All GET parameters with the name capital <code>[]</code> will forward their values in a list to the handler.</li></ul>
+</li></ul>
+
+== Response ==
+
+<ul>
+<li>Status code 200</li>
+<li>Response body as below.
+<source lang="javascript">{
+    "msg": "Hello, haskeller!"
+}</source></li></ul>
+
+= DELETE <code>greet/:greetid</code> =
+
+== Captures ==
+
+* ''“greetid”'': identifier of the greet msg to remove
+
+== Response ==
+
+* Status code 204
+* No response body
+
