@@ -8,7 +8,8 @@
 -- follows.
 --
 -- > import Text.Pandoc
--- > import Sevant.Docs.Pandoc
+-- > import Servant.Docs.Pandoc
+-- > import Servant.Docs
 -- > import Data.Default (def)
 -- >
 -- > myApi :: Proxy MyAPI
