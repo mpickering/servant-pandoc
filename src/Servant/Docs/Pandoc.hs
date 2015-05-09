@@ -35,11 +35,15 @@ import Text.Pandoc.Builder (Blocks, Inlines)
 import Text.Pandoc.Definition (Pandoc)
 import Text.Pandoc.JSON (toJSONFilter)
 import Servant.Docs
+import Network.HTTP.Media (MediaType)
 import qualified Data.HashMap.Strict as HM
 import Data.Text (Text, unpack)
+import Data.Monoid ((<>), mempty, mconcat)
 import Data.List (intercalate)
+import Data.Foldable (foldMap)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B (unpack)
+import Control.Lens
 
 
 -- | Helper function which can be used to make a pandoc filter which
@@ -58,7 +62,7 @@ makeFilter api = toJSONFilter inject
 -- | Generate a `Pandoc` representation of a given
 -- `API`.
 pandoc :: API -> Pandoc
-pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
+pandoc api = B.doc $ intros <> mconcat endpoints
 
   where printEndpoint :: Endpoint -> Action -> Blocks
         printEndpoint endpoint action =
@@ -66,11 +70,18 @@ pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
           capturesStr (action ^. captures) <>
           headersStr (action ^. headers) <>
           paramsStr (action ^. params) <>
-          rqbodyStr (action ^. rqbody) <>
+          rqbodyStrs (action ^. rqbody) <>
           responseStr (action ^. response)
 
           where str :: Inlines
-                str = B.str (show (endpoint^.method)) <> B.space <> B.code (intercalate "/" (endpoint ^. path))
+                str = B.str (show (endpoint^.method)) <> B.space <> B.code ("/" ++ intercalate "/" (endpoint ^. path))
+
+        intros = if null (api ^. apiIntros) then mempty else intros'
+        intros' = foldMap printIntro (api ^. apiIntros)
+        printIntro i =
+          B.header 1 (B.str $ i ^. introTitle) <>
+          foldMap (B.para . B.str) (i ^. introBody)
+        endpoints = map (uncurry printEndpoint) . HM.toList $ api ^. apiEndpoints
 
         capturesStr :: [DocCapture] -> Blocks
         capturesStr [] = mempty
@@ -78,7 +89,7 @@ pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
           B.header 2 "Captures" <>
           B.bulletList (map captureStr l)
         captureStr cap =
-          B.plain $ B.emph (B.doubleQuoted . B.str$ (cap ^. capSymbol)) <>  ":" <> B.space <>  B.str (cap ^. capDesc)
+          B.plain $ B.emph (B.str $ cap ^. capSymbol) <>  ":" <> B.space <>  B.str (cap ^. capDesc)
 
         headersStr :: [Text] -> Blocks
         headersStr [] = mempty
@@ -127,15 +138,21 @@ pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
 
           where values = param ^. paramValues
 
-        rqbodyStr :: Maybe ByteString -> Blocks
-        rqbodyStr Nothing = mempty
-        rqbodyStr (Just b) =
+        rqbodyStrs :: [(MediaType, ByteString)] -> Blocks
+        rqbodyStrs [] = mempty
+        rqbodyStrs bs =
           B.header 2 "Request Body" <>
-          jsonStr b
+          foldMap bodyStr bs
 
-        jsonStr :: ByteString -> Blocks
-        jsonStr b =
-          B.codeBlockWith ("",["javascript"],[]) (B.unpack b)
+        bodyStr :: (MediaType, ByteString) -> Blocks
+        bodyStr (media, bs) = case show media of
+          "text/html" -> codeStr "html" bs
+          "application/json" -> codeStr "javascript" bs
+          _  -> codeStr "text" bs
+
+        codeStr :: String -> ByteString -> Blocks
+        codeStr lang b =
+          B.codeBlockWith ("",[lang],[]) (B.unpack b)
 
         responseStr :: Response -> Blocks
         responseStr resp =
@@ -147,8 +164,8 @@ pandoc = B.doc . mconcat . map (uncurry printEndpoint) . HM.toList
               [] -> [B.plain "No response body"]
               xs -> map renderResponse xs)
           where
-            renderResponse ("", r) =
-              B.plain "Response body at below" <> jsonStr r
-            renderResponse (ctx, r) =
-              B.plain (B.str . unpack $ ctx) <> jsonStr r
+            renderResponse ("", media, r) =
+              B.plain (B.str $ "Response body (" <> show media <> ")") <> bodyStr (media, r)
+            renderResponse (ctx, media, r) =
+              B.plain (B.str $ unpack ctx <> " (" <> show media <> ")") <> bodyStr (media, r)
 
