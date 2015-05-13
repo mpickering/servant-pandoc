@@ -10,7 +10,7 @@ name:                servant-pandoc
 -- PVP summary:      +-+------- breaking API changes
 --                   | | +----- non-breaking API additions
 --                   | | | +--- code changes with no API change
-version:             0.1.0.2
+version:             0.4.0
 
 -- A short (one-line) description of the package.
 synopsis:            Use Pandoc to render servant API documentation
@@ -57,7 +57,14 @@ library
   other-extensions:    OverloadedStrings
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.7, http-media >=0.6 && <0.7, lens >=4.9 && <4.10, pandoc-types >=1.12 && <1.13, servant-docs >=0.4 && <0.5, unordered-containers >=0.2 && <0.3, text >=1.2 && <1.3, bytestring >=0.10 && <0.11
+  build-depends:       base >=4.7
+                     , http-media >=0.6 && <0.7
+                     , lens >=4.9 && <4.10
+                     , pandoc-types >=1.12 && <1.13
+                     , servant-docs >=0.4 && <0.5
+                     , unordered-containers >=0.2 && <0.3
+                     , text >=1.2 && <1.3
+                     , bytestring >=0.10 && <0.11
 
   -- Directories containing source files.
   hs-source-dirs:      src
