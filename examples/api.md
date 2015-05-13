@@ -1,33 +1,46 @@
-POST `greet`
-============
+On proper introductions.
+========================
+
+Hello there.
+
+As documentation is usually written for humans, it's often useful to introduce concepts with a few words.
+
+This title is below the last
+============================
+
+You'll also note that multiple intros are possible.
+
+POST `/greet`
+=============
 
 Request Body
 ------------
 
 ``` {.javascript}
-{
-    "msg": "Hello, haskeller!"
-}
+"Hello, haskeller!"
 ```
 
 Response
 --------
 
 -   Status code 201
--   Response body as below.
+-   If you use ?capital=true (application/json)
     ``` {.javascript}
-    {
-        "msg": "Hello, haskeller!"
-    }
+    "HELLO, HASKELLER"
     ```
 
-GET `hello/:name`
-=================
+-   If you use ?capital=false (application/json)
+    ``` {.javascript}
+    "Hello, haskeller"
+    ```
+
+GET `/hello;lang=<value>/:name`
+===============================
 
 Captures
 --------
 
--   *“name”*: name of the person to greet
+-   *name*: name of the person to greet
 
 GET Parameters
 --------------
@@ -38,33 +51,48 @@ GET Parameters
     :   *true, false*
 
     **Description**
-    :   Get the greeting message in uppercase (true) or not (false). Default is false.
-
-    -   This parameter is a **list**. All GET parameters with the name
-        capital `[]` will forward their values in a list to the handler.
+    :   Get the greeting message in uppercase (true) or not (false).Default is false.
 
 Response
 --------
 
 -   Status code 200
--   Response body as below.
+-   If you use ?capital=true (application/json)
     ``` {.javascript}
-    {
-        "msg": "Hello, haskeller!"
-    }
+    "HELLO, HASKELLER"
     ```
 
-DELETE `greet/:greetid`
-=======================
+-   If you use ?capital=true (text/plain;charset=utf-8)
+    ``` {.text}
+    "HELLO, HASKELLER"
+    ```
+
+-   If you use ?capital=false (application/json)
+    ``` {.javascript}
+    "Hello, haskeller"
+    ```
+
+-   If you use ?capital=false (text/plain;charset=utf-8)
+    ``` {.text}
+    "Hello, haskeller"
+    ```
+
+DELETE `/greet/:greetid`
+========================
 
 Captures
 --------
 
--   *“greetid”*: identifier of the greet msg to remove
+-   *greetid*: identifier of the greet msg to remove
+
+<!-- -->
+
+-   This endpoint is sensitive to the value of the **unicorns** HTTP
+    header.
 
 Response
 --------
 
--   Status code 204
+-   Status code 200
 -   No response body
 

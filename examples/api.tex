@@ -1,0 +1,133 @@
+\section{On proper introductions.}
+
+Hello there.
+
+As documentation is usually written for humans, it's often useful to introduce concepts with a few words.
+
+\section{This title is below the last}
+
+You'll also note that multiple intros are possible.
+
+\section{\texorpdfstring{POST \texttt{/greet}}{POST /greet}}
+
+\subsection{Request Body}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{"Hello, haskeller!"}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Response}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Status code 201
+\item
+  If you use ?capital=true (application/json)
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{"HELLO, HASKELLER"}
+\end{Highlighting}
+\end{Shaded}
+\item
+  If you use ?capital=false (application/json)
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{"Hello, haskeller"}
+\end{Highlighting}
+\end{Shaded}
+\end{itemize}
+
+\section{\texorpdfstring{GET
+\texttt{/hello;lang=\textless{}value\textgreater{}/:name}}{GET /hello;lang=\textless{}value\textgreater{}/:name}}
+
+\subsection{Captures}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \emph{name}: name of the person to greet
+\end{itemize}
+
+\subsection{GET Parameters}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  capital
+
+  \begin{description}
+  \itemsep1pt\parskip0pt\parsep0pt
+  \item[\textbf{Values}]
+  \emph{true, false}
+  \item[\textbf{Description}]
+  Get the greeting message in uppercase (true) or not (false).Default is false.
+  \end{description}
+\end{itemize}
+
+\subsection{Response}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Status code 200
+\item
+  If you use ?capital=true (application/json)
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{"HELLO, HASKELLER"}
+\end{Highlighting}
+\end{Shaded}
+\item
+  If you use ?capital=true (text/plain;charset=utf-8)
+
+\begin{verbatim}
+"HELLO, HASKELLER"
+\end{verbatim}
+\item
+  If you use ?capital=false (application/json)
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\StringTok{"Hello, haskeller"}
+\end{Highlighting}
+\end{Shaded}
+\item
+  If you use ?capital=false (text/plain;charset=utf-8)
+
+\begin{verbatim}
+"Hello, haskeller"
+\end{verbatim}
+\end{itemize}
+
+\section{\texorpdfstring{DELETE
+\texttt{/greet/:greetid}}{DELETE /greet/:greetid}}
+
+\subsection{Captures}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  \emph{greetid}: identifier of the greet msg to remove
+\end{itemize}
+
+\begin{itemize}
+\item
+  This endpoint is sensitive to the value of the \textbf{unicorns} HTTP
+  header.
+\end{itemize}
+
+\subsection{Response}
+
+\begin{itemize}
+\itemsep1pt\parskip0pt\parsep0pt
+\item
+  Status code 200
+\item
+  No response body
+\end{itemize}
