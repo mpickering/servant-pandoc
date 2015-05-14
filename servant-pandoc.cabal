@@ -16,7 +16,7 @@ version:             0.4.0
 synopsis:            Use Pandoc to render servant API documentation
 
 -- A longer description of the package.
--- description:
+description:         See <https://github.com/mpickering/servant-pandoc/blob/master/README.md README>.
 
 -- The license under which the package is released.
 license:             MIT
@@ -45,6 +45,9 @@ build-type:          Simple
 -- Constraint on the version of Cabal needed to build this package.
 cabal-version:       >=1.10
 
+source-repository head
+  type: git
+  location: https://github.com/mpickering/servant-pandoc/
 
 library
   -- Modules exported by the library.
@@ -57,7 +60,7 @@ library
   other-extensions:    OverloadedStrings
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.7
+  build-depends:       base >=4.7 && <5
                      , http-media >=0.6 && <0.7
                      , lens >=4.9 && <4.10
                      , pandoc-types >=1.12 && <1.13
@@ -76,4 +79,3 @@ library
   -- Base language which the package is written in.
   default-language:    Haskell2010
   ghc-options: -Wall
-
