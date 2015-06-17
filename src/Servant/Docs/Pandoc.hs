@@ -39,7 +39,7 @@ import Network.HTTP.Media (MediaType)
 import qualified Data.HashMap.Strict as HM
 import Data.Text (Text, unpack)
 import Data.Monoid ((<>), mempty, mconcat)
-import Data.List (intercalate)
+import Data.List (intercalate, sort)
 import Data.Foldable (foldMap)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B (unpack)
@@ -81,7 +81,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         printIntro i =
           B.header 1 (B.str $ i ^. introTitle) <>
           foldMap (B.para . B.str) (i ^. introBody)
-        endpoints = map (uncurry printEndpoint) . HM.toList $ api ^. apiEndpoints
+        endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
         capturesStr :: [DocCapture] -> Blocks
         capturesStr [] = mempty
