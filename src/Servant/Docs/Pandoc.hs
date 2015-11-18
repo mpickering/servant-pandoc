@@ -43,7 +43,7 @@ import Data.List (intercalate, sort)
 import Data.Foldable (foldMap)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B (unpack)
-import Control.Lens
+import Control.Lens ((^.))
 
 
 -- | Helper function which can be used to make a pandoc filter which
