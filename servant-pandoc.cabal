@@ -6,7 +6,7 @@ license:             MIT
 license-file:        LICENSE
 author:              Matthew Pickering, Ivan Miljenovic
 maintainer:          Ivan.Miljenovic@gmail.com
-category:            Web
+category:            Web, Servant
 build-type:          Simple
 extra-source-files:  CHANGELOG, README.md
 
