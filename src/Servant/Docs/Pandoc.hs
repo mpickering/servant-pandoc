@@ -30,21 +30,23 @@
 -- >> pandoc -o api.pdf --filter=api.hs manual.md
 module Servant.Docs.Pandoc (pandoc, makeFilter) where
 
-import qualified Text.Pandoc.Builder as B
-import Text.Pandoc.Builder (Blocks, Inlines)
-import Text.Pandoc.Definition (Pandoc)
-import Text.Pandoc.JSON (toJSONFilter)
-import Servant.Docs
-import Network.HTTP.Media (MediaType)
-import qualified Data.HashMap.Strict as HM
-import Data.Text (Text, unpack)
-import Data.Monoid ((<>), mempty, mconcat)
-import Data.List (intercalate, sort)
-import Data.Foldable (foldMap)
-import Data.ByteString.Lazy (ByteString)
+import           Control.Lens               ((^.))
+import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B (unpack)
-import Control.Lens ((^.))
-
+import           Data.CaseInsensitive       (foldedCase)
+import           Data.Foldable              (foldMap)
+import qualified Data.HashMap.Strict        as HM
+import           Data.List                  (intercalate, sort)
+import           Data.Monoid                (mconcat, mempty, (<>))
+import           Data.String.Conversions    (convertString)
+import           Data.Text                  (Text, unpack)
+import           Network.HTTP.Media         (MediaType)
+import qualified Network.HTTP.Media         as M
+import           Servant.Docs
+import           Text.Pandoc.Builder        (Blocks, Inlines)
+import qualified Text.Pandoc.Builder        as B
+import           Text.Pandoc.Definition     (Pandoc)
+import           Text.Pandoc.JSON           (toJSONFilter)
 
 -- | Helper function which can be used to make a pandoc filter which
 -- appends the generate docs to the end of the document.
@@ -70,7 +72,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
           capturesStr (action ^. captures) <>
           headersStr (action ^. headers) <>
           paramsStr (action ^. params) <>
-          rqbodyStrs (action ^. rqbody) <>
+          rqbodyStrs (action ^. rqtypes) (action ^. rqbody) <>
           responseStr (action ^. response)
 
           where str :: Inlines
@@ -138,34 +140,50 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
           where values = param ^. paramValues
 
-        rqbodyStrs :: [(MediaType, ByteString)] -> Blocks
-        rqbodyStrs [] = mempty
-        rqbodyStrs bs =
+        rqbodyStrs :: [MediaType] -> [(Text, MediaType, ByteString)] -> Blocks
+        rqbodyStrs [] [] = mempty
+        rqbodyStrs types bs =
           B.header 2 "Request Body" <>
-          foldMap bodyStr bs
+          formatTypes types <>
+          B.bulletList (map bodyStr bs)
 
-        bodyStr :: (MediaType, ByteString) -> Blocks
-        bodyStr (media, bs) = case show media of
-          "text/html" -> codeStr "html" bs
-          "application/json" -> codeStr "javascript" bs
-          _  -> codeStr "text" bs
+        formatTypes [] = mempty
+        formatTypes ts = B.bulletList
+                           [ B.plain "Supported content types are:"
+                           , B.bulletList (map (B.plain . B.code . show) ts)
+                           ]
 
-        codeStr :: String -> ByteString -> Blocks
-        codeStr lang b =
-          B.codeBlockWith ("",[lang],[]) (B.unpack b)
+        bodyStr :: (Text, MediaType, ByteString) -> Blocks
+        bodyStr (t, media, bs) = mconcat
+                                   [ B.plain . mconcat $
+                                     [ "Example ("
+                                     , B.text (convertString t)
+                                     , "): "
+                                     , B.code (show media)
+                                     ]
+                                   , codeStr media bs
+                                   ]
+
+        codeStr :: MediaType -> ByteString -> Blocks
+        codeStr media b =
+          B.codeBlockWith ("",[markdownForType media],[]) (B.unpack b)
 
         responseStr :: Response -> Blocks
         responseStr resp =
           B.header 2 "Response"  <>
           B.bulletList (
-            [B.plain $ "Status code" <> B.space <> (B.str . show) (resp ^. respStatus)]
-              ++
+            (B.plain $ "Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
+            formatTypes (resp ^. respTypes) :
             case resp ^. respBody of
               [] -> [B.plain "No response body"]
-              xs -> map renderResponse xs)
+              [("", t, r)] -> [B.plain "Response body as below.", codeStr t r]
+              xs -> concatMap renderResponse xs)
           where
-            renderResponse ("", media, r) =
-              B.plain (B.str $ "Response body (" <> show media <> ")") <> bodyStr (media, r)
-            renderResponse (ctx, media, r) =
-              B.plain (B.str $ unpack ctx <> " (" <> show media <> ")") <> bodyStr (media, r)
+            renderResponse :: (Text, MediaType, ByteString) -> [Blocks]
+            renderResponse (ctx, t, r) = [B.plain (B.str (convertString ctx)), codeStr t r]
 
+        -- Pandoc has a wide range of syntax highlighting available,
+        -- many (all?) of which seem to correspond to the sub-type of
+        -- their corresponding media type.
+        markdownForType :: MediaType -> String
+        markdownForType = convertString . foldedCase . M.subType
