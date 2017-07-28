@@ -82,7 +82,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         intros' = foldMap printIntro (api ^. apiIntros)
         printIntro i =
           B.header 1 (B.str $ i ^. introTitle) <>
-          foldMap (B.para . B.str) (i ^. introBody)
+          foldMap (B.para . B.text) (i ^. introBody)
         endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
         capturesStr :: [DocCapture] -> Blocks
@@ -91,7 +91,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
           B.header 2 "Captures" <>
           B.bulletList (map captureStr l)
         captureStr cap =
-          B.plain $ B.emph (B.str $ cap ^. capSymbol) <>  ":" <> B.space <>  B.str (cap ^. capDesc)
+          B.plain $ B.emph (B.str $ cap ^. capSymbol) <> ":" <> B.space <> B.text (cap ^. capDesc)
 
         headersStr :: [Text] -> Blocks
         headersStr [] = mempty
