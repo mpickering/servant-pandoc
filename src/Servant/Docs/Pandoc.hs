@@ -30,19 +30,22 @@
 -- >> pandoc -o api.pdf --filter=api.hs manual.md
 module Servant.Docs.Pandoc (pandoc, makeFilter) where
 
-import           Control.Lens               ((^.))
+import           Control.Lens               (mapped, view, (%~), (^.))
 import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B (unpack)
 import           Data.CaseInsensitive       (foldedCase)
 import           Data.Foldable              (foldMap)
 import qualified Data.HashMap.Strict        as HM
-import           Data.List                  (intercalate, sort)
+import           Data.List                  (sort)
 import           Data.Monoid                (mconcat, mempty, (<>))
 import           Data.String.Conversions    (convertString)
 import           Data.Text                  (Text, unpack)
 import           Network.HTTP.Media         (MediaType)
 import qualified Network.HTTP.Media         as M
 import           Servant.Docs
+import           Servant.Docs.Internal      (DocAuthentication,
+                                             authDataRequired, authInfo,
+                                             authIntro)
 import           Text.Pandoc.Builder        (Blocks, Inlines)
 import qualified Text.Pandoc.Builder        as B
 import           Text.Pandoc.Definition     (Pandoc)
@@ -60,58 +63,80 @@ makeFilter api = toJSONFilter inject
     inject :: Pandoc -> Pandoc
     inject p = p <> pandoc api
 
-
 -- | Generate a `Pandoc` representation of a given
 -- `API`.
 pandoc :: API -> Pandoc
 pandoc api = B.doc $ intros <> mconcat endpoints
 
   where printEndpoint :: Endpoint -> Action -> Blocks
-        printEndpoint endpoint action =
-          B.header 1 str <>
-          capturesStr (action ^. captures) <>
-          headersStr (action ^. headers) <>
-          paramsStr (action ^. params) <>
-          rqbodyStrs (action ^. rqtypes) (action ^. rqbody) <>
-          responseStr (action ^. response)
-
-          where str :: Inlines
-                str = B.str (show (endpoint^.method)) <> B.space <> B.code ("/" ++ intercalate "/" (endpoint ^. path))
+        printEndpoint endpoint action = mconcat
+          [ B.header 2 hdrStr
+          , notesStr    (action ^. notes)
+          , authStr     (action ^. authInfo)
+          , capturesStr (action ^. captures)
+          , headersStr  (action ^. headers)
+          , paramsStr   (action ^. params)
+          , rqbodyStrs  (action ^. rqtypes) (action ^. rqbody)
+          , responseStr (action ^. response)
+          ]
+          where
+            hdrStr :: Inlines
+            hdrStr = mconcat [ strShow (endpoint ^. method)
+                             , B.space
+                             , B.code (showPath (endpoint ^. path))
+                             ]
 
         intros = if null (api ^. apiIntros) then mempty else intros'
         intros' = foldMap printIntro (api ^. apiIntros)
         printIntro i =
-          B.header 1 (B.str $ i ^. introTitle) <>
+          B.header 2 (B.str $ i ^. introTitle) <>
           foldMap (B.para . B.text) (i ^. introBody)
         endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
+
+        notesStr :: [DocNote] -> Blocks
+        notesStr = foldMap noteStr
+
+        noteStr :: DocNote -> Blocks
+        noteStr nt = B.header 4 (B.str (nt ^. noteTitle)) <> paraText (nt ^. noteBody)
+
+        authStr :: [DocAuthentication] -> Blocks
+        authStr []    = mempty
+        authStr auths = mconcat
+          [ B.header 4 "Authentication"
+          , paraText (mapped %~ view authIntro $ auths)
+          , B.para "Clients must supply the following data"
+          , B.bulletList (map (B.plain . B.text) (mapped %~ view authDataRequired $ auths))
+          ]
 
         capturesStr :: [DocCapture] -> Blocks
         capturesStr [] = mempty
         capturesStr l =
-          B.header 2 "Captures" <>
+          B.header 4 "Captures" <>
           B.bulletList (map captureStr l)
+
         captureStr cap =
           B.plain $ B.emph (B.str $ cap ^. capSymbol) <> ":" <> B.space <> B.text (cap ^. capDesc)
 
         headersStr :: [Text] -> Blocks
         headersStr [] = mempty
-        headersStr l =  B.bulletList (map (B.para . headerStr) l)
+        headersStr l =  B.header 4 "Headers" <> B.bulletList (map (B.para . headerStr) l)
 
           where headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
-                                    (B.strong . B.str  $ unpack hname) <> B.space <> "HTTP header."
+                                    (B.strong . B.str $ unpack hname) <> B.space <> "HTTP header."
 
         paramsStr :: [DocQueryParam] -> Blocks
         paramsStr [] = mempty
         paramsStr l =
-          B.header 2 "GET Parameters" <>
+          B.header 4 "Query Parameters" <>
           B.bulletList (map paramStr l)
 
+        paramStr :: DocQueryParam -> Blocks
         paramStr param =
             B.plain (B.str (param ^. paramName)) <>
               B.definitionList (
                 [(B.strong "Values",
                     [B.plain (B.emph
-                      (foldr1 (\a b -> a <> B.str "," <> B.space <> b) (map B.str values)))])
+                      (foldr1 (\a b -> a <> "," <> B.space <> b) (map B.str values)))])
                 | not (null values) || param ^. paramKind /= Flag]
                 ++
               [(B.strong "Description",
@@ -121,7 +146,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
                 [B.plain $ "This parameter is a" <>
                          B.space <>
                          B.strong "list" <>
-                         ". All GET parameters with the name" <>
+                         ". All query parameters with the name" <>
                          B.space <>
                          B.str (param ^. paramName) <>
                          B.space <>
@@ -131,13 +156,10 @@ pandoc api = B.doc $ intros <> mconcat endpoints
                 ++
               [B.plain $ "This parameter is a" <>
                           B.space <>
-                          B.strong "flag." <>
-                          B.space <>
-                          "This means no value is expected to be associated to this parameter."
+                          B.strong "flag" <>
+                          ". This means no value is expected to be associated to this parameter."
               | param ^. paramKind == Flag]
           )
-
-
           where values = param ^. paramValues
 
         rqbodyStrs :: [MediaType] -> [(Text, MediaType, ByteString)] -> Blocks
@@ -187,3 +209,14 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         -- their corresponding media type.
         markdownForType :: MediaType -> String
         markdownForType = convertString . foldedCase . M.subType
+
+strShow :: (Show a) => a -> Inlines
+strShow = B.str . show
+
+paraText :: [String] -> Blocks
+paraText = foldMap (B.para . B.text)
+
+-- Duplicate of Servant.Docs.Internal
+showPath :: [String] -> String
+showPath [] = "/"
+showPath ps = concatMap ('/':) ps
