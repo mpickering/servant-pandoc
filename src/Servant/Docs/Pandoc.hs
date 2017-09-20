@@ -112,7 +112,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
                 [(B.strong "Values",
                     [B.plain (B.emph
                       (foldr1 (\a b -> a <> B.str "," <> B.space <> b) (map B.str values)))])
-                | not (null values) || param ^. paramKind /= Flag]
+                | not (null values), param ^. paramKind /= Flag]
                 ++
               [(B.strong "Description",
                   [B.plain $ B.str (param ^. paramDesc)])])
