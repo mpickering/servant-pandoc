@@ -34,12 +34,15 @@ import           Control.Lens               (mapped, view, (%~), (^.))
 import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B (unpack)
 import           Data.CaseInsensitive       (foldedCase)
-import           Data.Foldable              (foldMap)
+import           Data.Foldable              (fold, foldMap)
 import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (sort)
+import           Data.List.NonEmpty         (NonEmpty, groupWith)
+import qualified Data.List.NonEmpty         as NE
 import           Data.Monoid                (mconcat, mempty, (<>))
 import           Data.String.Conversions    (convertString)
 import           Data.Text                  (Text, unpack)
+import qualified Data.Text                  as T
 import           Network.HTTP.Media         (MediaType)
 import qualified Network.HTTP.Media         as M
 import           Servant.Docs
@@ -167,7 +170,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         rqbodyStrs types bs =
           B.header 1 "Request Body" <>
           formatTypes types <>
-          B.bulletList (map bodyStr bs)
+          B.bulletList (formatBodies bs)
 
         formatTypes [] = mempty
         formatTypes ts = B.bulletList
@@ -175,16 +178,35 @@ pandoc api = B.doc $ intros <> mconcat endpoints
                            , B.bulletList (map (B.plain . B.code . show) ts)
                            ]
 
-        bodyStr :: (Text, MediaType, ByteString) -> Blocks
-        bodyStr (t, media, bs) = mconcat
-                                   [ B.plain . mconcat $
-                                     [ "Example ("
-                                     , B.text (convertString t)
-                                     , "): "
-                                     , B.code (show media)
-                                     ]
-                                   , codeStr media bs
-                                   ]
+        -- This assumes that when the bodies are created, identical
+        -- labels and representations are located next to each other.
+        formatBodies :: [(Text, M.MediaType, ByteString)] -> [Blocks]
+        formatBodies bds = map formatBody bodyGroups
+          where
+            bodyGroups :: [(Text, NonEmpty M.MediaType, ByteString)]
+            bodyGroups =
+              map (\grps -> let (t,_,b) = NE.head grps in (t, fmap (\(_,m,_) -> m) grps, b))
+              . groupWith (\(t,_,b) -> (t,b))
+              $ bds
+
+        formatBody :: (Text, NonEmpty M.MediaType, ByteString) -> Blocks
+        formatBody (t, medias, b) = mconcat
+                                      [ B.plain . mconcat $
+                                        [ title
+                                        , " ("
+                                        , mediaList medias
+                                        , "): "
+                                        ]
+                                      , codeStr media b
+                                      ]
+          where
+            mediaList = fold . NE.intersperse ", " . fmap (B.code . show)
+
+            media = NE.head medias
+
+            title
+              | T.null t  = "Example"
+              | otherwise = B.text (convertString t)
 
         codeStr :: MediaType -> ByteString -> Blocks
         codeStr media b =
@@ -199,10 +221,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
             case resp ^. respBody of
               [] -> [B.plain "No response body"]
               [("", t, r)] -> [B.plain "Response body as below.", codeStr t r]
-              xs -> concatMap renderResponse xs)
-          where
-            renderResponse :: (Text, MediaType, ByteString) -> [Blocks]
-            renderResponse (ctx, t, r) = [B.plain (B.str (convertString ctx)), codeStr t r]
+              xs -> formatBodies xs)
 
         -- Pandoc has a wide range of syntax highlighting available,
         -- many (all?) of which seem to correspond to the sub-type of
