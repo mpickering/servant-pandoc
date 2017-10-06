@@ -208,7 +208,10 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         -- many (all?) of which seem to correspond to the sub-type of
         -- their corresponding media type.
         markdownForType :: MediaType -> String
-        markdownForType = convertString . foldedCase . M.subType
+        markdownForType mt =
+          case M.subType mt of
+            "x-www-form-urlencoded" -> "html"
+            t                       -> convertString (foldedCase t)
 
 strShow :: (Show a) => a -> Inlines
 strShow = B.str . show
