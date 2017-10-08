@@ -169,11 +169,10 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         rqbodyStrs [] [] = mempty
         rqbodyStrs types bs =
           B.header 1 "Request Body" <>
-          formatTypes types <>
-          B.bulletList (formatBodies bs)
+          B.bulletList (formatTypes types : formatBodies bs)
 
         formatTypes [] = mempty
-        formatTypes ts = B.bulletList
+        formatTypes ts = mconcat
                            [ B.plain "Supported content types are:"
                            , B.bulletList (map (B.plain . B.code . show) ts)
                            ]
