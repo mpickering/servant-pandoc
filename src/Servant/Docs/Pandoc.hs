@@ -32,7 +32,7 @@ module Servant.Docs.Pandoc (pandoc, makeFilter) where
 
 import           Control.Lens               (mapped, view, (%~), (^.))
 import           Data.ByteString.Lazy       (ByteString)
-import qualified Data.ByteString.Lazy.Char8 as B (unpack)
+import qualified Data.ByteString.Lazy.Char8 as B
 import           Data.CaseInsensitive       (foldedCase)
 import           Data.Foldable              (fold, foldMap)
 import qualified Data.HashMap.Strict        as HM
@@ -84,7 +84,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
           ]
           where
             hdrStr :: Inlines
-            hdrStr = mconcat [ strShow (endpoint ^. method)
+            hdrStr = mconcat [ B.str (convertString (endpoint ^. method))
                              , B.space
                              , B.code (showPath (endpoint ^. path))
                              ]
@@ -230,9 +230,6 @@ pandoc api = B.doc $ intros <> mconcat endpoints
           case M.subType mt of
             "x-www-form-urlencoded" -> "html"
             t                       -> convertString (foldedCase t)
-
-strShow :: (Show a) => a -> Inlines
-strShow = B.str . show
 
 paraText :: [String] -> Blocks
 paraText = foldMap (B.para . B.text)
