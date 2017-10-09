@@ -73,7 +73,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
   where printEndpoint :: Endpoint -> Action -> Blocks
         printEndpoint endpoint action = mconcat
-          [ B.header 1 hdrStr
+          [ B.header 2 hdrStr
           , notesStr    (action ^. notes)
           , authStr     (action ^. authInfo)
           , capturesStr (action ^. captures)
@@ -100,12 +100,12 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         notesStr = foldMap noteStr
 
         noteStr :: DocNote -> Blocks
-        noteStr nt = B.header 2 (B.str (nt ^. noteTitle)) <> paraText (nt ^. noteBody)
+        noteStr nt = B.header 3 (B.str (nt ^. noteTitle)) <> paraText (nt ^. noteBody)
 
         authStr :: [DocAuthentication] -> Blocks
         authStr []    = mempty
         authStr auths = mconcat
-          [ B.header 2 "Authentication"
+          [ B.header 3 "Authentication"
           , paraText (mapped %~ view authIntro $ auths)
           , B.para "Clients must supply the following data"
           , B.bulletList (map (B.plain . B.text) (mapped %~ view authDataRequired $ auths))
@@ -114,7 +114,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         capturesStr :: [DocCapture] -> Blocks
         capturesStr [] = mempty
         capturesStr l =
-          B.header 2 "Captures" <>
+          B.header 3 "Captures" <>
           B.bulletList (map captureStr l)
 
         captureStr cap =
@@ -122,7 +122,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
         headersStr :: [Text] -> Blocks
         headersStr [] = mempty
-        headersStr l =  B.header 2 "Headers" <> B.bulletList (map (B.para . headerStr) l)
+        headersStr l =  B.header 3 "Headers" <> B.bulletList (map (B.para . headerStr) l)
 
           where headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
                                     (B.strong . B.str $ unpack hname) <> B.space <> "HTTP header."
@@ -130,7 +130,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         paramsStr :: [DocQueryParam] -> Blocks
         paramsStr [] = mempty
         paramsStr l =
-          B.header 2 "Query Parameters" <>
+          B.header 3 "Query Parameters" <>
           B.bulletList (map paramStr l)
 
         paramStr :: DocQueryParam -> Blocks
