@@ -196,7 +196,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
         formatBody :: (Text, NonEmpty M.MediaType, ByteString) -> Blocks
         formatBody (t, medias, b) = mconcat
-                                      [ B.plain . mconcat $
+                                      [ B.para . mconcat $
                                         [ title
                                         , " ("
                                         , mediaList medias
@@ -221,7 +221,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         responseStr resp =
           B.header sectionLevel "Response"  <>
           B.bulletList (
-            (B.plain $ "Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
+            B.plain ("Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
             formatTypes (resp ^. respTypes) :
             case resp ^. respBody of
               [] -> [B.plain "No response body"]
