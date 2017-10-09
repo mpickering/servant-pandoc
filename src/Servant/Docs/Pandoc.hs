@@ -66,6 +66,12 @@ makeFilter api = toJSONFilter inject
     inject :: Pandoc -> Pandoc
     inject p = p <> pandoc api
 
+-- | Define these values for consistency rather than magic numbers.
+topLevel, endpointLevel, sectionLevel :: Int
+topLevel      = 1
+endpointLevel = topLevel      + 1
+sectionLevel  = endpointLevel + 1
+
 -- | Generate a `Pandoc` representation of a given
 -- `API`.
 pandoc :: API -> Pandoc
@@ -73,7 +79,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
   where printEndpoint :: Endpoint -> Action -> Blocks
         printEndpoint endpoint action = mconcat
-          [ B.header 2 hdrStr
+          [ B.header endpointLevel hdrStr
           , notesStr    (action ^. notes)
           , authStr     (action ^. authInfo)
           , capturesStr (action ^. captures)
@@ -92,7 +98,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         intros = if null (api ^. apiIntros) then mempty else intros'
         intros' = foldMap printIntro (api ^. apiIntros)
         printIntro i =
-          B.header 1 (B.str $ i ^. introTitle) <>
+          B.header topLevel (B.str $ i ^. introTitle) <>
           foldMap (B.para . B.text) (i ^. introBody)
         endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
@@ -100,12 +106,12 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         notesStr = foldMap noteStr
 
         noteStr :: DocNote -> Blocks
-        noteStr nt = B.header 3 (B.str (nt ^. noteTitle)) <> paraText (nt ^. noteBody)
+        noteStr nt = B.header sectionLevel (B.str (nt ^. noteTitle)) <> paraText (nt ^. noteBody)
 
         authStr :: [DocAuthentication] -> Blocks
         authStr []    = mempty
         authStr auths = mconcat
-          [ B.header 3 "Authentication"
+          [ B.header sectionLevel "Authentication"
           , paraText (mapped %~ view authIntro $ auths)
           , B.para "Clients must supply the following data"
           , B.bulletList (map (B.plain . B.text) (mapped %~ view authDataRequired $ auths))
@@ -114,7 +120,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         capturesStr :: [DocCapture] -> Blocks
         capturesStr [] = mempty
         capturesStr l =
-          B.header 3 "Captures" <>
+          B.header sectionLevel "Captures" <>
           B.bulletList (map captureStr l)
 
         captureStr cap =
@@ -122,7 +128,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
         headersStr :: [Text] -> Blocks
         headersStr [] = mempty
-        headersStr l =  B.header 3 "Headers" <> B.bulletList (map (B.para . headerStr) l)
+        headersStr l =  B.header sectionLevel "Headers" <> B.bulletList (map (B.para . headerStr) l)
 
           where headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
                                     (B.strong . B.str $ unpack hname) <> B.space <> "HTTP header."
@@ -130,7 +136,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         paramsStr :: [DocQueryParam] -> Blocks
         paramsStr [] = mempty
         paramsStr l =
-          B.header 3 "Query Parameters" <>
+          B.header sectionLevel "Query Parameters" <>
           B.bulletList (map paramStr l)
 
         paramStr :: DocQueryParam -> Blocks
@@ -168,7 +174,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         rqbodyStrs :: [MediaType] -> [(Text, MediaType, ByteString)] -> Blocks
         rqbodyStrs [] [] = mempty
         rqbodyStrs types bs =
-          B.header 1 "Request Body" <>
+          B.header sectionLevel "Request Body" <>
           B.bulletList (formatTypes types : formatBodies bs)
 
         formatTypes [] = mempty
@@ -213,7 +219,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
         responseStr :: Response -> Blocks
         responseStr resp =
-          B.header 1 "Response"  <>
+          B.header sectionLevel "Response"  <>
           B.bulletList (
             (B.plain $ "Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
             formatTypes (resp ^. respTypes) :
