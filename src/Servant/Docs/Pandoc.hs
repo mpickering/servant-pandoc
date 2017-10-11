@@ -27,6 +27,34 @@
 -- > main = makeFilter (docs myApi)
 --
 -- >> pandoc -o api.pdf --filter=api.hs manual.md
+--
+-- A more sophisticated filter can be used to actually convert
+-- introduction and note bodies into Markdown for pandoc to be able to
+-- process:
+--
+-- > import Data.Monoid         (mconcat, (<>))
+-- > import Servant.Docs.Pandoc (pandoc)
+-- > import Text.Pandoc         (readMarkdown)
+-- > import Text.Pandoc.JSON    (Block(Para, Plain), Inline(Str), Pandoc(Pandoc),
+-- >                             toJSONFilter)
+-- > import Text.Pandoc.Options (def)
+-- > import Text.Pandoc.Walk    (walkM)
+-- >
+-- > main :: IO ()
+-- > main = toJSONFilter append
+-- >   where
+-- >     append :: Pandoc -> Pandoc
+-- >     append = (<> mconcat (walkM parseMarkdown (pandoc myApi)))
+-- >
+-- > parseMarkdown :: Block -> [Block]
+-- > parseMarkdown bl = case bl of
+-- >                      Para  [Str str] -> toMarkdown str
+-- >                      Plain [Str str] -> toMarkdown str
+-- >                      _               -> [bl]
+-- >   where
+-- >     toMarkdown = either (const [bl]) unPandoc . readMarkdown def
+-- >
+-- >     unPandoc (Pandoc _ bls) = bls
 module Servant.Docs.Pandoc (pandoc, makeFilter) where
 
 import           Control.Lens               (mapped, view, (%~), (^.))
