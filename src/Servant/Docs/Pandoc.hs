@@ -2,10 +2,9 @@
 ----------------------------------
 -- | There are two ways in which to use this module.
 --
--- The first is to use the renderer directly with the pandoc API.
--- A very simple
--- program to render the API documentation as a mediawiki document might look as
--- follows.
+-- The first is to use the renderer directly with the pandoc API.  A
+-- very simple program to render the API documentation as a mediawiki
+-- document might look as follows.
 --
 -- > import Text.Pandoc
 -- > import Servant.Docs.Pandoc
