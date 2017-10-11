@@ -32,3 +32,35 @@ Then to run this:
 ```sh
 pandoc -o api.pdf --filter=api.hs manual.md
 ```
+
+A more sophisticated filter might be to actually convert introduction
+and note bodies to Markdown before processing (note: this is not
+enabled by default as the `pandoc` library is GPL-licensed, whereas
+this library uses `pandoc-types` which is BSD3-licensed):
+
+
+```haskell
+import Data.Monoid         (mconcat, (<>))
+import Servant.Docs.Pandoc (pandoc)
+import Text.Pandoc         (readMarkdown)
+import Text.Pandoc.JSON    (Block(Para, Plain), Inline(Str), Pandoc(Pandoc),
+                            toJSONFilter)
+import Text.Pandoc.Options (def)
+import Text.Pandoc.Walk    (walkM)
+
+main :: IO ()
+main = toJSONFilter append
+  where
+    append :: Pandoc -> Pandoc
+    append = (<> mconcat (walkM parseMarkdown (pandoc myApi)))
+
+parseMarkdown :: Block -> [Block]
+parseMarkdown bl = case bl of
+                     Para  [Str str] -> toMarkdown str
+                     Plain [Str str] -> toMarkdown str
+                     _               -> [bl]
+  where
+    toMarkdown = either (const [bl]) unPandoc . readMarkdown def
+
+    unPandoc (Pandoc _ bls) = bls
+```
