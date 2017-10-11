@@ -1,8 +1,19 @@
-There are two ways in which to use this module.
+[![Hackage](https://img.shields.io/hackage/v/servant-pandoc.svg)](https://hackage.haskell.org/package/servant-pandoc) [![Build Status](https://travis-ci.org/mpickering/servant-pandoc.svg)](https://travis-ci.org/mpickering/servant-pandoc)
 
-The first is to use the renderer directly with the pandoc API. A very
-simple program to render the API documentation as a mediawiki document
-might look as follows.
+An extension to [servant-docs] that allows you to use [Pandoc] to
+render your Servant API documentation.
+
+[servant-docs]: http://hackage.haskell.org/package/servant-docs
+[Pandoc]: http://pandoc.org/
+
+How to use this package
+=======================
+
+Generate documentation directly
+-------------------------------
+
+A very simple program to render the API documentation as a mediawiki
+document might look as follows.
 
 ```haskell
 import Text.Pandoc
@@ -16,9 +27,12 @@ writeDocs :: API -> IO ()
 writeDocs api = writeFile "api.mw" (writeMediaWiki def (pandoc api))
 ```
 
-The second approach is to use `makeFilter` to make a filter which can
-be used directly with pandoc from the command line. This filter will
-just append the API documentation to the end of the document. Example
+Create a Pandoc filter
+----------------------
+
+The `makeFilter` function allows you to make a filter which can be
+used directly with pandoc from the command line. This filter will just
+append the API documentation to the end of the document. Example
 usage:
 
 ```haskell
@@ -33,11 +47,12 @@ Then to run this:
 pandoc -o api.pdf --filter=api.hs manual.md
 ```
 
+### Custom filters
+
 A more sophisticated filter might be to actually convert introduction
 and note bodies to Markdown before processing (note: this is not
 enabled by default as the `pandoc` library is GPL-licensed, whereas
 this library uses `pandoc-types` which is BSD3-licensed):
-
 
 ```haskell
 import Data.Monoid         (mconcat, (<>))
