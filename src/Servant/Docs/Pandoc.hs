@@ -99,22 +99,22 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         intros' = foldMap printIntro (api ^. apiIntros)
         printIntro i =
           B.header topLevel (B.str $ i ^. introTitle) <>
-          foldMap (B.para . B.text) (i ^. introBody)
+          paraStr (i ^. introBody)
         endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
         notesStr :: [DocNote] -> Blocks
         notesStr = foldMap noteStr
 
         noteStr :: DocNote -> Blocks
-        noteStr nt = B.header sectionLevel (B.str (nt ^. noteTitle)) <> paraText (nt ^. noteBody)
+        noteStr nt = B.header sectionLevel (B.text (nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
 
         authStr :: [DocAuthentication] -> Blocks
         authStr []    = mempty
         authStr auths = mconcat
           [ B.header sectionLevel "Authentication"
-          , paraText (mapped %~ view authIntro $ auths)
+          , paraStr (mapped %~ view authIntro $ auths)
           , B.para "Clients must supply the following data"
-          , B.bulletList (map (B.plain . B.text) (mapped %~ view authDataRequired $ auths))
+          , B.bulletList (map (B.plain . B.str) (mapped %~ view authDataRequired $ auths))
           ]
 
         capturesStr :: [DocCapture] -> Blocks
@@ -237,8 +237,8 @@ pandoc api = B.doc $ intros <> mconcat endpoints
             "x-www-form-urlencoded" -> "html"
             t                       -> convertString (foldedCase t)
 
-paraText :: [String] -> Blocks
-paraText = foldMap (B.para . B.text)
+paraStr :: [String] -> Blocks
+paraStr = foldMap (B.para . B.str)
 
 -- Duplicate of Servant.Docs.Internal
 showPath :: [String] -> String
