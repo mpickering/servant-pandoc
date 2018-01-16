@@ -1,3 +1,30 @@
+## 0.5.0.0 -- 2018-01-16
+
+This release has behavioural changes to match how servant-docs 0.11.1
+works.
+
+API Change:
+
+* Add `pandocWith` that takes in a `RenderOptions`.  This allows for:
+
+    - Selecting whether to show all or just one mime-type for requests
+      and responses.
+
+    - Optionally group all Notes under a common header.
+
+Behavioural Changes:
+
+* Display notes, auth
+
+* Rationalise header depths
+
+* Document the HTTP method the parameters of an endpoint belong to
+  (rather than assuming `GET` for all of them).
+
+* Handle multiple content types for request/response bodies.
+
+* Add a grouping header for the Headers and endpoint is sensitive to.
+
 ## 0.4.1.4 -- 2017-07-25
 
 Supports servant-docs 0.11.  Changed behaviour means that this release

@@ -145,7 +145,7 @@ pandoc = pandocWith defRenderingOptions
 --              myAPI
 -- @
 --
--- @since 0.5
+-- @since 0.5.0.0
 pandocWith :: RenderingOptions -> API -> Pandoc
 pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
   where
