@@ -206,7 +206,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
 
     headersStr :: [Text] -> Blocks
     headersStr [] = mempty
-    headersStr l =  B.header sectionLevel "Headers" <> B.bulletList (map (B.para . headerStr) l)
+    headersStr l  = B.header sectionLevel "Headers" <> B.bulletList (map (B.para . headerStr) l)
 
       where
         headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
