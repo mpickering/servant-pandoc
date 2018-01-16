@@ -57,6 +57,16 @@
 -- >     unPandoc (Pandoc _ bls) = bls
 module Servant.Docs.Pandoc (pandoc, makeFilter) where
 
+import Servant.Docs          (API, Action, DocCapture, DocNote, DocQueryParam,
+                              Endpoint, ParamKind(Flag, List), Response,
+                              apiEndpoints, apiIntros, capDesc, capSymbol,
+                              captures, headers, introBody, introTitle, method,
+                              noteBody, noteTitle, notes, paramDesc, paramKind,
+                              paramName, paramValues, params, path, respBody,
+                              respStatus, respTypes, response, rqbody, rqtypes)
+import Servant.Docs.Internal (DocAuthentication, authDataRequired, authInfo,
+                              authIntro)
+
 import           Control.Lens               (mapped, view, (%~), (^.))
 import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
@@ -72,14 +82,13 @@ import           Data.Text                  (Text, unpack)
 import qualified Data.Text                  as T
 import           Network.HTTP.Media         (MediaType)
 import qualified Network.HTTP.Media         as M
-import           Servant.Docs
-import           Servant.Docs.Internal      (DocAuthentication,
-                                             authDataRequired, authInfo,
-                                             authIntro)
-import           Text.Pandoc.Builder        (Blocks, Inlines)
-import qualified Text.Pandoc.Builder        as B
-import           Text.Pandoc.Definition     (Pandoc)
-import           Text.Pandoc.JSON           (toJSONFilter)
+
+import           Text.Pandoc.Builder    (Blocks, Inlines)
+import qualified Text.Pandoc.Builder    as B
+import           Text.Pandoc.Definition (Pandoc)
+import           Text.Pandoc.JSON       (toJSONFilter)
+
+--------------------------------------------------------------------------------
 
 -- | Helper function which can be used to make a pandoc filter which
 -- appends the generate docs to the end of the document.
