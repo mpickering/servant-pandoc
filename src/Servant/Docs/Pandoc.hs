@@ -113,165 +113,168 @@ sectionLevel  = endpointLevel + 1
 pandoc :: API -> Pandoc
 pandoc api = B.doc $ intros <> mconcat endpoints
 
-  where printEndpoint :: Endpoint -> Action -> Blocks
-        printEndpoint endpoint action = mconcat
-          [ B.header endpointLevel hdrStr
-          , notesStr    (action ^. notes)
-          , authStr     (action ^. authInfo)
-          , capturesStr (action ^. captures)
-          , headersStr  (action ^. headers)
-          , paramsStr   (action ^. params)
-          , rqbodyStrs  (action ^. rqtypes) (action ^. rqbody)
-          , responseStr (action ^. response)
-          ]
-          where
-            hdrStr :: Inlines
-            hdrStr = mconcat [ B.str (convertString (endpoint ^. method))
-                             , B.space
-                             , B.code (showPath (endpoint ^. path))
-                             ]
+  where
+    printEndpoint :: Endpoint -> Action -> Blocks
+    printEndpoint endpoint action = mconcat
+      [ B.header endpointLevel hdrStr
+      , notesStr    (action ^. notes)
+      , authStr     (action ^. authInfo)
+      , capturesStr (action ^. captures)
+      , headersStr  (action ^. headers)
+      , paramsStr   (action ^. params)
+      , rqbodyStrs  (action ^. rqtypes) (action ^. rqbody)
+      , responseStr (action ^. response)
+      ]
+      where
+        hdrStr :: Inlines
+        hdrStr = mconcat [ B.str (convertString (endpoint ^. method))
+                         , B.space
+                         , B.code (showPath (endpoint ^. path))
+                         ]
 
-        intros = if null (api ^. apiIntros) then mempty else intros'
-        intros' = foldMap printIntro (api ^. apiIntros)
-        printIntro i =
-          B.header topLevel (B.str $ i ^. introTitle) <>
-          paraStr (i ^. introBody)
-        endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
+    intros = if null (api ^. apiIntros) then mempty else intros'
+    intros' = foldMap printIntro (api ^. apiIntros)
+    printIntro i =
+      B.header topLevel (B.str $ i ^. introTitle) <>
+      paraStr (i ^. introBody)
+    endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
-        notesStr :: [DocNote] -> Blocks
-        notesStr = foldMap noteStr
+    notesStr :: [DocNote] -> Blocks
+    notesStr = foldMap noteStr
 
-        noteStr :: DocNote -> Blocks
-        noteStr nt = B.header sectionLevel (B.text (nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
+    noteStr :: DocNote -> Blocks
+    noteStr nt = B.header sectionLevel (B.text (nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
 
-        authStr :: [DocAuthentication] -> Blocks
-        authStr []    = mempty
-        authStr auths = mconcat
-          [ B.header sectionLevel "Authentication"
-          , paraStr (mapped %~ view authIntro $ auths)
-          , B.para "Clients must supply the following data"
-          , B.bulletList (map (B.plain . B.str) (mapped %~ view authDataRequired $ auths))
-          ]
+    authStr :: [DocAuthentication] -> Blocks
+    authStr []    = mempty
+    authStr auths = mconcat
+      [ B.header sectionLevel "Authentication"
+      , paraStr (mapped %~ view authIntro $ auths)
+      , B.para "Clients must supply the following data"
+      , B.bulletList (map (B.plain . B.str) (mapped %~ view authDataRequired $ auths))
+      ]
 
-        capturesStr :: [DocCapture] -> Blocks
-        capturesStr [] = mempty
-        capturesStr l =
-          B.header sectionLevel "Captures" <>
-          B.bulletList (map captureStr l)
+    capturesStr :: [DocCapture] -> Blocks
+    capturesStr [] = mempty
+    capturesStr l =
+      B.header sectionLevel "Captures" <>
+      B.bulletList (map captureStr l)
 
-        captureStr cap =
-          B.plain $ B.emph (B.str $ cap ^. capSymbol) <> ":" <> B.space <> B.text (cap ^. capDesc)
+    captureStr cap =
+      B.plain $ B.emph (B.str $ cap ^. capSymbol) <> ":" <> B.space <> B.text (cap ^. capDesc)
 
-        headersStr :: [Text] -> Blocks
-        headersStr [] = mempty
-        headersStr l =  B.header sectionLevel "Headers" <> B.bulletList (map (B.para . headerStr) l)
+    headersStr :: [Text] -> Blocks
+    headersStr [] = mempty
+    headersStr l =  B.header sectionLevel "Headers" <> B.bulletList (map (B.para . headerStr) l)
 
-          where headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
-                                    (B.strong . B.str $ unpack hname) <> B.space <> "HTTP header."
+      where
+        headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
+                            (B.strong . B.str $ unpack hname) <> B.space <> "HTTP header."
 
-        paramsStr :: [DocQueryParam] -> Blocks
-        paramsStr [] = mempty
-        paramsStr l =
-          B.header sectionLevel "Query Parameters" <>
-          B.bulletList (map paramStr l)
+    paramsStr :: [DocQueryParam] -> Blocks
+    paramsStr [] = mempty
+    paramsStr l =
+      B.header sectionLevel "Query Parameters" <>
+      B.bulletList (map paramStr l)
 
-        paramStr :: DocQueryParam -> Blocks
-        paramStr param =
-            B.plain (B.str (param ^. paramName)) <>
-              B.definitionList (
-                [(B.strong "Values",
-                    [B.plain (B.emph
-                      (foldr1 (\a b -> a <> "," <> B.space <> b) (map B.str values)))])
-                | not (null values), param ^. paramKind /= Flag]
-                ++
-              [(B.strong "Description",
-                  [B.plain $ B.str (param ^. paramDesc)])])
-              <>
-              B.bulletList (
-                [B.plain $ "This parameter is a" <>
-                         B.space <>
-                         B.strong "list" <>
-                         ". All query parameters with the name" <>
-                         B.space <>
-                         B.str (param ^. paramName) <>
-                         B.space <>
-                         B.code "[]" <> B.space <>
-                         "will forward their values in a list to the handler."
-                         | param ^. paramKind == List]
-                ++
-              [B.plain $ "This parameter is a" <>
-                          B.space <>
-                          B.strong "flag" <>
-                          ". This means no value is expected to be associated to this parameter."
-              | param ^. paramKind == Flag]
-          )
-          where values = param ^. paramValues
-
-        rqbodyStrs :: [MediaType] -> [(Text, MediaType, ByteString)] -> Blocks
-        rqbodyStrs [] [] = mempty
-        rqbodyStrs types bs =
-          B.header sectionLevel "Request Body" <>
-          B.bulletList (formatTypes types : formatBodies bs)
-
-        formatTypes [] = mempty
-        formatTypes ts = mconcat
-                           [ B.plain "Supported content types are:"
-                           , B.bulletList (map (B.plain . B.code . show) ts)
-                           ]
-
-        -- This assumes that when the bodies are created, identical
-        -- labels and representations are located next to each other.
-        formatBodies :: [(Text, M.MediaType, ByteString)] -> [Blocks]
-        formatBodies bds = map formatBody bodyGroups
-          where
-            bodyGroups :: [(Text, NonEmpty M.MediaType, ByteString)]
-            bodyGroups =
-              map (\grps -> let (t,_,b) = NE.head grps in (t, fmap (\(_,m,_) -> m) grps, b))
-              . groupWith (\(t,_,b) -> (t,b))
-              $ bds
-
-        formatBody :: (Text, NonEmpty M.MediaType, ByteString) -> Blocks
-        formatBody (t, medias, b) = mconcat
-                                      [ B.para . mconcat $
-                                        [ title
-                                        , " ("
-                                        , mediaList medias
-                                        , "): "
-                                        ]
-                                      , codeStr media b
-                                      ]
-          where
-            mediaList = fold . NE.intersperse ", " . fmap (B.code . show)
-
-            media = NE.head medias
-
-            title
-              | T.null t  = "Example"
-              | otherwise = B.text (convertString t)
-
-        codeStr :: MediaType -> ByteString -> Blocks
-        codeStr media b =
-          B.codeBlockWith ("",[markdownForType media],[]) (B.unpack b)
-
-        responseStr :: Response -> Blocks
-        responseStr resp =
-          B.header sectionLevel "Response"  <>
+    paramStr :: DocQueryParam -> Blocks
+    paramStr param =
+        B.plain (B.str (param ^. paramName)) <>
+          B.definitionList (
+            [(B.strong "Values",
+                [B.plain (B.emph
+                  (foldr1 (\a b -> a <> "," <> B.space <> b) (map B.str values)))])
+            | not (null values), param ^. paramKind /= Flag]
+            ++
+          [(B.strong "Description",
+              [B.plain $ B.str (param ^. paramDesc)])])
+          <>
           B.bulletList (
-            B.plain ("Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
-            formatTypes (resp ^. respTypes) :
-            case resp ^. respBody of
-              [] -> [B.plain "No response body"]
-              [("", t, r)] -> [B.plain "Response body as below.", codeStr t r]
-              xs -> formatBodies xs)
+            [B.plain $ "This parameter is a" <>
+                     B.space <>
+                     B.strong "list" <>
+                     ". All query parameters with the name" <>
+                     B.space <>
+                     B.str (param ^. paramName) <>
+                     B.space <>
+                     B.code "[]" <> B.space <>
+                     "will forward their values in a list to the handler."
+                     | param ^. paramKind == List]
+            ++
+          [B.plain $ "This parameter is a" <>
+                      B.space <>
+                      B.strong "flag" <>
+                      ". This means no value is expected to be associated to this parameter."
+          | param ^. paramKind == Flag]
+      )
+      where
+        values = param ^. paramValues
 
-        -- Pandoc has a wide range of syntax highlighting available,
-        -- many (all?) of which seem to correspond to the sub-type of
-        -- their corresponding media type.
-        markdownForType :: MediaType -> String
-        markdownForType mt =
-          case M.subType mt of
-            "x-www-form-urlencoded" -> "html"
-            t                       -> convertString (foldedCase t)
+    rqbodyStrs :: [MediaType] -> [(Text, MediaType, ByteString)] -> Blocks
+    rqbodyStrs [] [] = mempty
+    rqbodyStrs types bs =
+      B.header sectionLevel "Request Body" <>
+      B.bulletList (formatTypes types : formatBodies bs)
+
+    formatTypes [] = mempty
+    formatTypes ts = mconcat
+                       [ B.plain "Supported content types are:"
+                       , B.bulletList (map (B.plain . B.code . show) ts)
+                       ]
+
+    -- This assumes that when the bodies are created, identical
+    -- labels and representations are located next to each other.
+    formatBodies :: [(Text, M.MediaType, ByteString)] -> [Blocks]
+    formatBodies bds = map formatBody bodyGroups
+      where
+        bodyGroups :: [(Text, NonEmpty M.MediaType, ByteString)]
+        bodyGroups =
+          map (\grps -> let (t,_,b) = NE.head grps in (t, fmap (\(_,m,_) -> m) grps, b))
+          . groupWith (\(t,_,b) -> (t,b))
+          $ bds
+
+    formatBody :: (Text, NonEmpty M.MediaType, ByteString) -> Blocks
+    formatBody (t, medias, b) = mconcat
+                                  [ B.para . mconcat $
+                                    [ title
+                                    , " ("
+                                    , mediaList medias
+                                    , "): "
+                                    ]
+                                  , codeStr media b
+                                  ]
+      where
+        mediaList = fold . NE.intersperse ", " . fmap (B.code . show)
+
+        media = NE.head medias
+
+        title
+          | T.null t  = "Example"
+          | otherwise = B.text (convertString t)
+
+    codeStr :: MediaType -> ByteString -> Blocks
+    codeStr media b =
+      B.codeBlockWith ("",[markdownForType media],[]) (B.unpack b)
+
+    responseStr :: Response -> Blocks
+    responseStr resp =
+      B.header sectionLevel "Response"  <>
+      B.bulletList (
+        B.plain ("Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
+        formatTypes (resp ^. respTypes) :
+        case resp ^. respBody of
+          []           -> [B.plain "No response body"]
+          [("", t, r)] -> [B.plain "Response body as below.", codeStr t r]
+          xs           -> formatBodies xs)
+
+    -- Pandoc has a wide range of syntax highlighting available,
+    -- many (all?) of which seem to correspond to the sub-type of
+    -- their corresponding media type.
+    markdownForType :: MediaType -> String
+    markdownForType mt =
+      case M.subType mt of
+        "x-www-form-urlencoded" -> "html"
+        t                       -> convertString (foldedCase t)
 
 paraStr :: [String] -> Blocks
 paraStr = foldMap (B.para . B.str)
