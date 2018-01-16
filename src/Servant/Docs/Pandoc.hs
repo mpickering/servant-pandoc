@@ -55,17 +55,23 @@
 -- >     toMarkdown = either (const [bl]) unPandoc . readMarkdown def
 -- >
 -- >     unPandoc (Pandoc _ bls) = bls
-module Servant.Docs.Pandoc (pandoc, makeFilter) where
+module Servant.Docs.Pandoc
+  ( pandoc
+  , pandocWith
+  , makeFilter
+  ) where
 
-import Servant.Docs          (API, Action, DocCapture, DocNote, DocQueryParam,
-                              Endpoint, ParamKind(Flag, List), Response,
-                              apiEndpoints, apiIntros, capDesc, capSymbol,
-                              captures, headers, introBody, introTitle, method,
-                              noteBody, noteTitle, notes, paramDesc, paramKind,
-                              paramName, paramValues, params, path, respBody,
-                              respStatus, respTypes, response, rqbody, rqtypes)
-import Servant.Docs.Internal (DocAuthentication, authDataRequired, authInfo,
-                              authIntro)
+import Servant.Docs (API, Action, DocAuthentication, DocCapture, DocNote,
+                     DocQueryParam, Endpoint, ParamKind(Flag, List),
+                     RenderingOptions, Response,
+                     ShowContentTypes(AllContentTypes, FirstContentType),
+                     apiEndpoints, apiIntros, authDataRequired, authInfo,
+                     authIntro, capDesc, capSymbol, captures,
+                     defRenderingOptions, headers, introBody, introTitle,
+                     method, noteBody, noteTitle, notes, notesHeading,
+                     paramDesc, paramKind, paramName, paramValues, params, path,
+                     requestExamples, respBody, respStatus, respTypes, response,
+                     responseExamples, rqbody, rqtypes)
 
 import           Control.Lens               (mapped, view, (%~), (^.))
 import           Data.ByteString.Lazy       (ByteString)
@@ -74,9 +80,10 @@ import           Data.CaseInsensitive       (foldedCase)
 import           Data.Foldable              (fold, foldMap)
 import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (sort)
-import           Data.List.NonEmpty         (NonEmpty, groupWith)
+import           Data.List.NonEmpty         (NonEmpty((:|)), groupWith)
 import qualified Data.List.NonEmpty         as NE
-import           Data.Monoid                (mconcat, mempty, (<>))
+import           Data.Maybe                 (isJust)
+import           Data.Monoid                (mappend, mconcat, mempty, (<>))
 import           Data.String.Conversions    (convertString)
 import           Data.Text                  (Text, unpack)
 import qualified Data.Text                  as T
@@ -103,16 +110,44 @@ makeFilter api = toJSONFilter inject
     inject p = p <> pandoc api
 
 -- | Define these values for consistency rather than magic numbers.
-topLevel, endpointLevel, sectionLevel :: Int
-topLevel      = 1
-endpointLevel = topLevel      + 1
-sectionLevel  = endpointLevel + 1
+topLevel, endpointLevel, sectionLevel, subsectionLevel :: Int
+topLevel        = 1
+endpointLevel   = topLevel      + 1
+sectionLevel    = endpointLevel + 1
+subsectionLevel = sectionLevel + 1
 
--- | Generate a `Pandoc` representation of a given
+-- | Generate a 'Pandoc' representation of a given
 -- `API`.
+--
+-- This is equivalent to @'pandocWith' 'defRenderingOptions'@.
 pandoc :: API -> Pandoc
-pandoc api = B.doc $ intros <> mconcat endpoints
+pandoc = pandocWith defRenderingOptions
 
+-- | Generate a 'Pandoc' representation of a given API using the specified options.
+--
+-- These options allow you to customise aspects such as:
+--
+-- * Choose how many content-types for each request body example are
+--   shown with 'requestExamples'.
+--
+-- * Choose how many content-types for each response body example
+--   are shown with 'responseExamples'.
+--
+-- * Whether all 'notes' should be grouped together under a common
+--   heading with 'notesHeading'.
+--
+-- For example, to only show the first content-type of each example:
+--
+-- @
+-- markdownWith ('defRenderingOptions'
+--                 & 'requestExamples'  '.~' 'FirstContentType'
+--                 & 'responseExamples' '.~' 'FirstContentType' )
+--              myAPI
+-- @
+--
+-- @since 0.5
+pandocWith :: RenderingOptions -> API -> Pandoc
+pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
   where
     printEndpoint :: Endpoint -> Action -> Blocks
     printEndpoint endpoint action = mconcat
@@ -140,10 +175,16 @@ pandoc api = B.doc $ intros <> mconcat endpoints
     endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
     notesStr :: [DocNote] -> Blocks
-    notesStr = foldMap noteStr
+    notesStr = addHeading . foldMap noteStr
+      where
+        addHeading = maybe id (mappend . B.header sectionLevel . B.str) (renderOpts ^. notesHeading)
 
     noteStr :: DocNote -> Blocks
-    noteStr nt = B.header sectionLevel (B.text (nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
+    noteStr nt = B.header lvl (B.text (nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
+      where
+        lvl = if isJust (renderOpts ^. notesHeading)
+                 then subsectionLevel
+                 else sectionLevel
 
     authStr :: [DocAuthentication] -> Blocks
     authStr []    = mempty
@@ -214,7 +255,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
     rqbodyStrs [] [] = mempty
     rqbodyStrs types bs =
       B.header sectionLevel "Request Body" <>
-      B.bulletList (formatTypes types : formatBodies bs)
+      B.bulletList (formatTypes types : formatBodies (renderOpts ^. requestExamples) bs)
 
     formatTypes [] = mempty
     formatTypes ts = mconcat
@@ -224,14 +265,18 @@ pandoc api = B.doc $ intros <> mconcat endpoints
 
     -- This assumes that when the bodies are created, identical
     -- labels and representations are located next to each other.
-    formatBodies :: [(Text, M.MediaType, ByteString)] -> [Blocks]
-    formatBodies bds = map formatBody bodyGroups
+    formatBodies :: ShowContentTypes -> [(Text, M.MediaType, ByteString)] -> [Blocks]
+    formatBodies ex bds = map formatBody (select bodyGroups)
       where
         bodyGroups :: [(Text, NonEmpty M.MediaType, ByteString)]
         bodyGroups =
           map (\grps -> let (t,_,b) = NE.head grps in (t, fmap (\(_,m,_) -> m) grps, b))
           . groupWith (\(t,_,b) -> (t,b))
           $ bds
+
+        select = case ex of
+                   AllContentTypes -> id
+                   FirstContentType -> map (\(t,ms,b) -> (t, NE.head ms :| [], b))
 
     formatBody :: (Text, NonEmpty M.MediaType, ByteString) -> Blocks
     formatBody (t, medias, b) = mconcat
@@ -265,7 +310,7 @@ pandoc api = B.doc $ intros <> mconcat endpoints
         case resp ^. respBody of
           []           -> [B.plain "No response body"]
           [("", t, r)] -> [B.plain "Response body as below.", codeStr t r]
-          xs           -> formatBodies xs)
+          xs           -> formatBodies (renderOpts ^. responseExamples) xs)
 
     -- Pandoc has a wide range of syntax highlighting available,
     -- many (all?) of which seem to correspond to the sub-type of
