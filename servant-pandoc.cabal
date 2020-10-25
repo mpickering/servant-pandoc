@@ -24,7 +24,7 @@ library
   other-extensions:    OverloadedStrings
 
   build-depends:       base >=4.7 && <5
-                     , http-media >=0.6 && <0.8
+                     , http-media >=0.6 && <0.9
                      , lens >=4.9 && <5
                      , pandoc-types >=1.12 && <1.18
                      , servant-docs >= 0.11.1 && < 0.12
