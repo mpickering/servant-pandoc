@@ -77,15 +77,14 @@ import           Control.Lens               (mapped, view, (%~), (^.))
 import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import           Data.CaseInsensitive       (foldedCase)
-import           Data.Foldable              (fold, foldMap)
+import           Data.Foldable              (fold)
 import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (sort)
 import           Data.List.NonEmpty         (NonEmpty((:|)), groupWith)
 import qualified Data.List.NonEmpty         as NE
 import           Data.Maybe                 (isJust)
-import           Data.Monoid                (mappend, mconcat, mempty, (<>))
 import           Data.String.Conversions    (convertString)
-import           Data.Text                  (Text, unpack)
+import           Data.Text                  (Text)
 import qualified Data.Text                  as T
 import           Network.HTTP.Media         (MediaType)
 import qualified Network.HTTP.Media         as M
@@ -164,23 +163,23 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
         hdrStr :: Inlines
         hdrStr = mconcat [ B.str (convertString (endpoint ^. method))
                          , B.space
-                         , B.code (showPath (endpoint ^. path))
+                         , B.code (convertString (showPath (endpoint ^. path)))
                          ]
 
     intros = if null (api ^. apiIntros) then mempty else intros'
     intros' = foldMap printIntro (api ^. apiIntros)
     printIntro i =
-      B.header topLevel (B.str $ i ^. introTitle) <>
+      B.header topLevel (B.str . convertString $ i ^. introTitle) <>
       paraStr (i ^. introBody)
     endpoints = map (uncurry printEndpoint) . sort . HM.toList $ api ^. apiEndpoints
 
     notesStr :: [DocNote] -> Blocks
     notesStr = addHeading . foldMap noteStr
       where
-        addHeading = maybe id (mappend . B.header sectionLevel . B.str) (renderOpts ^. notesHeading)
+        addHeading = maybe id (mappend . B.header sectionLevel . B.str . convertString) (renderOpts ^. notesHeading)
 
     noteStr :: DocNote -> Blocks
-    noteStr nt = B.header lvl (B.text (nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
+    noteStr nt = B.header lvl (B.text (convertString $ nt ^. noteTitle)) <> paraStr (nt ^. noteBody)
       where
         lvl = if isJust (renderOpts ^. notesHeading)
                  then subsectionLevel
@@ -192,7 +191,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
       [ B.header sectionLevel "Authentication"
       , paraStr (mapped %~ view authIntro $ auths)
       , B.para "Clients must supply the following data"
-      , B.bulletList (map (B.plain . B.str) (mapped %~ view authDataRequired $ auths))
+      , B.bulletList (map (B.plain . B.str) (mapped %~ convertString . view authDataRequired $ auths))
       ]
 
     capturesStr :: [DocCapture] -> Blocks
@@ -202,7 +201,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
       B.bulletList (map captureStr l)
 
     captureStr cap =
-      B.plain $ B.emph (B.str $ cap ^. capSymbol) <> ":" <> B.space <> B.text (cap ^. capDesc)
+      B.plain $ B.emph (B.str . convertString $ cap ^. capSymbol) <> ":" <> B.space <> B.text (convertString $ cap ^. capDesc)
 
     headersStr :: [Text] -> Blocks
     headersStr [] = mempty
@@ -210,7 +209,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
 
       where
         headerStr hname = "This endpoint is sensitive to the value of the" <> B.space <>
-                            (B.strong . B.str $ unpack hname) <> B.space <> "HTTP header."
+                            (B.strong . B.str $ hname) <> B.space <> "HTTP header."
 
     paramsStr :: [DocQueryParam] -> Blocks
     paramsStr [] = mempty
@@ -220,7 +219,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
 
     paramStr :: DocQueryParam -> Blocks
     paramStr param =
-        B.plain (B.str (param ^. paramName)) <>
+        B.plain (B.str . convertString $ param ^. paramName) <>
           B.definitionList (
             [(B.strong "Values",
                 [B.plain (B.emph
@@ -228,7 +227,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
             | not (null values), param ^. paramKind /= Flag]
             ++
           [(B.strong "Description",
-              [B.plain $ B.str (param ^. paramDesc)])])
+              [B.plain $ B.str (convertString $ param ^. paramDesc)])])
           <>
           B.bulletList (
             [B.plain $ "This parameter is a" <>
@@ -236,7 +235,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
                      B.strong "list" <>
                      ". All query parameters with the name" <>
                      B.space <>
-                     B.str (param ^. paramName) <>
+                     B.str (convertString $ param ^. paramName) <>
                      B.space <>
                      B.code "[]" <> B.space <>
                      "will forward their values in a list to the handler."
@@ -249,7 +248,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
           | param ^. paramKind == Flag]
       )
       where
-        values = param ^. paramValues
+        values = map convertString $ param ^. paramValues
 
     rqbodyStrs :: [MediaType] -> [(Text, MediaType, ByteString)] -> Blocks
     rqbodyStrs [] [] = mempty
@@ -260,7 +259,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
     formatTypes [] = mempty
     formatTypes ts = mconcat
                        [ B.plain "Supported content types are:"
-                       , B.bulletList (map (B.plain . B.code . show) ts)
+                       , B.bulletList (map (B.plain . B.code . convertString . show) ts)
                        ]
 
     -- This assumes that when the bodies are created, identical
@@ -289,7 +288,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
                                   , codeStr media b
                                   ]
       where
-        mediaList = fold . NE.intersperse ", " . fmap (B.code . show)
+        mediaList = fold . NE.intersperse ", " . fmap (B.code . convertString . show)
 
         media = NE.head medias
 
@@ -299,13 +298,13 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
 
     codeStr :: MediaType -> ByteString -> Blocks
     codeStr media b =
-      B.codeBlockWith ("",[markdownForType media],[]) (B.unpack b)
+      B.codeBlockWith ("",[convertString $ markdownForType media],[]) (convertString $ B.unpack b)
 
     responseStr :: Response -> Blocks
     responseStr resp =
       B.header sectionLevel "Response"  <>
       B.bulletList (
-        B.plain ("Status code" <> B.space <> (B.str . show) (resp ^. respStatus)) :
+        B.plain ("Status code" <> B.space <> (B.str . convertString . show) (resp ^. respStatus)) :
         formatTypes (resp ^. respTypes) :
         case resp ^. respBody of
           []           -> [B.plain "No response body"]
@@ -322,7 +321,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
         t                       -> convertString (foldedCase t)
 
 paraStr :: [String] -> Blocks
-paraStr = foldMap (B.para . B.str)
+paraStr = foldMap (B.para . B.str . convertString)
 
 -- Duplicate of Servant.Docs.Internal
 showPath :: [String] -> String

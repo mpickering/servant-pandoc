@@ -1,4 +1,5 @@
 [![Hackage](https://img.shields.io/hackage/v/servant-pandoc.svg)](https://hackage.haskell.org/package/servant-pandoc) [![Build Status](https://travis-ci.org/mpickering/servant-pandoc.svg)](https://travis-ci.org/mpickering/servant-pandoc)
+[![Build status](https://github.com/mpickering/servant-pandoc/actions/workflows/ci.yml/badge.svg)](https://github.com/mpickering/servant-pandoc/actions/workflows/ci.yml)
 
 An extension to [servant-docs] that allows you to use [Pandoc] to
 render your Servant API documentation.
