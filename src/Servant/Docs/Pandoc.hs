@@ -73,10 +73,11 @@ import Servant.Docs (API, Action, DocAuthentication, DocCapture, DocNote,
                      requestExamples, respBody, respStatus, respTypes, response,
                      responseExamples, rqbody, rqtypes)
 
-import           Control.Lens               (mapped, view, (%~), (^.))
+import           Control.Lens               (mapped, view, (%~), (^.), _1)
 import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
-import           Data.CaseInsensitive       (foldedCase)
+import qualified Data.ByteString.Char8 as BSC
+import           Data.CaseInsensitive       (foldedCase, original)
 import           Data.Foldable              (fold)
 import qualified Data.HashMap.Strict        as HM
 import           Data.List                  (sort)
@@ -93,6 +94,9 @@ import           Text.Pandoc.Builder    (Blocks, Inlines)
 import qualified Text.Pandoc.Builder    as B
 import           Text.Pandoc.Definition (Pandoc)
 import           Text.Pandoc.JSON       (toJSONFilter)
+import Control.Lens.Combinators (toListOf)
+import Control.Lens (Each(..))
+import Control.Lens (to)
 
 --------------------------------------------------------------------------------
 
@@ -154,7 +158,7 @@ pandocWith renderOpts api = B.doc $ intros <> mconcat endpoints
       , notesStr    (action ^. notes)
       , authStr     (action ^. authInfo)
       , capturesStr (action ^. captures)
-      , headersStr  (action ^. headers)
+      , headersStr  (toListOf (headers . each . _1 . to (T.pack . BSC.unpack . original)) action)
       , paramsStr   (action ^. params)
       , rqbodyStrs  (action ^. rqtypes) (action ^. rqbody)
       , responseStr (action ^. response)
