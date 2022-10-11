@@ -26,7 +26,7 @@ library
   build-depends:       base >=4.7 && <5
                      , http-media >=0.6 && <0.9
                      , lens >=4.9 && <5
-                     , pandoc-types >=1.12 && <1.21
+                     , pandoc-types >=1.22 && <2
                      , servant-docs >= 0.11.1 && < 0.12
                      , unordered-containers >=0.2 && <0.3
                      , text >=1.2 && <1.3
