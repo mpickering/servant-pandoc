@@ -73,7 +73,8 @@ import Servant.Docs (API, Action, DocAuthentication, DocCapture, DocNote,
                      requestExamples, respBody, respStatus, respTypes, response,
                      responseExamples, rqbody, rqtypes)
 
-import           Control.Lens               (mapped, view, (%~), (^.), _1)
+import           Control.Lens (Each (..), mapped, to, view, (%~), (^.), _1)
+import           Control.Lens.Combinators (toListOf)
 import           Data.ByteString.Lazy       (ByteString)
 import qualified Data.ByteString.Lazy.Char8 as B
 import qualified Data.ByteString.Char8 as BSC
@@ -94,9 +95,6 @@ import           Text.Pandoc.Builder    (Blocks, Inlines)
 import qualified Text.Pandoc.Builder    as B
 import           Text.Pandoc.Definition (Pandoc)
 import           Text.Pandoc.JSON       (toJSONFilter)
-import Control.Lens.Combinators (toListOf)
-import Control.Lens (Each(..))
-import Control.Lens (to)
 
 --------------------------------------------------------------------------------
 
